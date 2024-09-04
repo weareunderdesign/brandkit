@@ -17,8 +17,11 @@
         <h2 class="text-xl font-semibold mb-4">Result</h2>
         <p class="mb-2"><strong>Personality Traits:</strong> <span id="traits"></span></p>
         <p class="mb-2"><strong>Suggested Tone of Voice:</strong> <span id="toneOfVoice"></span></p>
-        <p><strong>Suggested Look and Feel:</strong> <span id="lookAndFeel"></span></p>
+        <p class="mb-2"><strong>Suggested Look and Feel:</strong> <span id="lookAndFeel"></span></p>
+        <p><strong>Potential Conflicts:</strong> <span id="conflicts"></span></p>
     </div>
+
+    <button id="resetButton" class="px-3 py-1 text-sm rounded text-white bg-red-500 mb-4">Reset</button>
 
     <script>
         const personalityAxes = [
@@ -78,9 +81,17 @@
             }
 
             const handle = document.createElement('div');
-            handle.className = 'absolute top-1/2 w-4 h-4 bg-blue-500 rounded-full -translate-y-1/2 cursor-pointer';
+            handle.className = 'absolute top-1/2 w-4 h-4 rounded-full -translate-y-1/2 cursor-pointer';
             handle.style.left = '50%';
             slider.appendChild(handle);
+
+            function updateHandleColor() {
+                const value = sliderValues[index];
+                const hue = (value / 100) * 240; // 0 to 240 (red to blue)
+                handle.style.backgroundColor = `hsl(${hue}, 100%, 50%)`;
+            }
+
+            updateHandleColor();
 
             sliderContainer.appendChild(slider);
 
@@ -98,9 +109,24 @@
                 document.addEventListener('mouseup', stopMoving);
             });
 
+            handle.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                document.addEventListener('touchmove', moveHandle);
+                document.addEventListener('touchend', stopMoving);
+            });
+
+            function startMoving(e) {
+                e.preventDefault();
+                document.addEventListener('mousemove', moveHandle);
+                document.addEventListener('touchmove', moveHandle);
+                document.addEventListener('mouseup', stopMoving);
+                document.addEventListener('touchend', stopMoving);
+            }
+
             function moveHandle(e) {
                 const sliderRect = slider.getBoundingClientRect();
-                let newPosition = (e.clientX - sliderRect.left) / sliderRect.width;
+                const clientX = e.type.startsWith('touch') ? e.touches[0].clientX : e.clientX;
+                let newPosition = (clientX - sliderRect.left) / sliderRect.width;
                 newPosition = Math.max(0, Math.min(1, newPosition));
                 const snappedPosition = Math.round(newPosition * 10) / 10;
                 handle.style.left = `${snappedPosition * 100}%`;
@@ -110,7 +136,9 @@
 
             function stopMoving() {
                 document.removeEventListener('mousemove', moveHandle);
+                document.removeEventListener('touchmove', moveHandle);
                 document.removeEventListener('mouseup', stopMoving);
+                document.removeEventListener('touchend', stopMoving);
             }
 
             return sliderContainer;
@@ -120,23 +148,20 @@
             const traits = sliderValues.map((value, index) => {
                 const axis = personalityAxes[index];
                 const levelIndex = Math.round(value / 10);
-                if (levelIndex < 4) {
+                if (levelIndex === 5) {
+                    return ''; // Balanced, don't output anything
+                } else if (levelIndex < 5) {
                     return `${levels[levelIndex]} ${axis.left}`;
-                } else if (levelIndex > 6) {
-                    return `${levels[levelIndex]} ${axis.right}`;
-                } else if (levelIndex === 4) {
-                    return `${axis.left} yet ${axis.right.toLowerCase()}`;
-                } else if (levelIndex === 6) {
-                    return `${axis.right} yet ${axis.left.toLowerCase()}`;
+                } else {
+                    return `${levels[10 - levelIndex]} ${axis.right}`;
                 }
-                return '';
             }).filter(trait => trait !== '');
 
             document.getElementById('traits').textContent = traits.join(', ') || 'Balanced';
 
             const toneOfVoice = traits.map(trait => {
                 const parts = trait.split(' ');
-                const intensity = parts[0] !== 'yet' ? parts[0].toLowerCase() : '';
+                const intensity = parts.length > 1 ? parts[0].toLowerCase() : '';
                 const baseTrait = parts[parts.length - 1];
                 let description = '';
                 switch (baseTrait) {
@@ -148,8 +173,8 @@
                     case 'Rebel': description = 'innovative, bold'; break;
                     case 'Friend': description = 'friendly, approachable'; break;
                     case 'Authority': description = 'authoritative, expert'; break;
-                    case 'Mature & Classic': description = 'timeless, refined'; break;
-                    case 'Young & Innovative': description = 'fresh, cutting-edge'; break;
+                    case 'Mature': case 'Classic': description = 'timeless, refined'; break;
+                    case 'Young': case 'Innovative': description = 'fresh, cutting-edge'; break;
                 }
                 return `${intensity ? intensity + ' ' : ''}${description}`;
             }).join(', ');
@@ -158,7 +183,7 @@
 
             const lookAndFeel = traits.map(trait => {
                 const parts = trait.split(' ');
-                const intensity = parts[0] !== 'yet' ? parts[0].toLowerCase() : '';
+                const intensity = parts.length > 1 ? parts[0].toLowerCase() : '';
                 const baseTrait = parts[parts.length - 1];
                 let description = '';
                 switch (baseTrait) {
@@ -170,15 +195,43 @@
                     case 'Rebel': description = 'unconventional layout, bold typography'; break;
                     case 'Friend': description = 'rounded shapes, warm colors'; break;
                     case 'Authority': description = 'structured layout, professional imagery'; break;
-                    case 'Mature & Classic': description = 'serif fonts, classic color palette'; break;
-                    case 'Young & Innovative': description = 'modern fonts, gradient colors'; break;
+                    case 'Mature': case 'Classic': description = 'serif fonts, classic color palette'; break;
+                    case 'Young': case 'Innovative': description = 'modern fonts, gradient colors'; break;
                 }
                 return `${intensity ? intensity + ' ' : ''}${description}`;
             }).join(', ');
 
             document.getElementById('lookAndFeel').textContent = lookAndFeel || 'Clean and versatile design';
 
+            detectConflicts();
             updatePresetButtons();
+        }
+
+        function detectConflicts() {
+            const conflicts = [];
+
+            if (Math.abs(sliderValues[0] - sliderValues[1]) > 60) {
+                conflicts.push("Balancing 'Elite' with 'Playful' may be challenging.");
+            }
+
+            if (Math.abs(sliderValues[2] - sliderValues[3]) > 60) {
+                conflicts.push("Being both 'Rebel' and 'Authority' might create tension.");
+            }
+
+            if (sliderValues[0] < 30 && sliderValues[4] > 70) {
+                conflicts.push("Combining 'Elite' with 'Young & Innovative' could be tricky.");
+            }
+
+            if (sliderValues[1] > 70 && sliderValues[3] > 70) {
+                conflicts.push("Being very 'Playful' while maintaining strong 'Authority' may be difficult.");
+            }
+
+            const conflictsElement = document.getElementById('conflicts');
+            if (conflicts.length > 0) {
+                conflictsElement.innerHTML = conflicts.join('<br>');
+            } else {
+                conflictsElement.textContent = 'No significant conflicts detected.';
+            }
         }
 
         function updatePresetButtons() {
@@ -219,6 +272,14 @@
                 handle.style.left = `${sliderValues[index]}%`;
             });
         }
+
+        function resetSliders() {
+            sliderValues = personalityAxes.map(() => 50);
+            updateSliderPositions();
+            updateResult();
+        }
+
+        document.getElementById('resetButton').addEventListener('click', resetSliders);
 
         // Initialize sliders
         const slidersContainer = document.getElementById('sliders');
