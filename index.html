@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Personality Sliders</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="font-sans max-w-3xl mx-auto p-6">
+    <h1 class="text-3xl font-bold mb-6">Personality Sliders</h1>
+    
+    <div id="presetButtons" class="flex flex-wrap gap-2 mb-8"></div>
+    
+    <div id="sliders"></div>
+    
+    <div id="result" class="bg-gray-100 p-6 rounded-lg mt-8">
+        <h2 class="text-xl font-semibold mb-4">Result</h2>
+        <p class="mb-2"><strong>Personality Traits:</strong> <span id="traits"></span></p>
+        <p class="mb-2"><strong>Suggested Tone of Voice:</strong> <span id="toneOfVoice"></span></p>
+        <p><strong>Suggested Look and Feel:</strong> <span id="lookAndFeel"></span></p>
+    </div>
+
+    <script>
+        const personalityAxes = [
+            { left: 'Elite', right: 'Mass Appeal', leftBrand: 'CHANEL', rightBrand: 'H&M' },
+            { left: 'Serious', right: 'Playful', leftBrand: 'Palantir', rightBrand: 'Google' },
+            { left: 'Conventional', right: 'Rebel', leftBrand: 'Honda', rightBrand: 'Tesla' },
+            { left: 'Friend', right: 'Authority', leftBrand: 'Disney', rightBrand: 'NY Times' },
+            { left: 'Mature & Classic', right: 'Young & Innovative', leftBrand: 'Booking.com', rightBrand: 'Airbnb' },
+        ];
+
+        const companyPresets = {
+            'CHANEL': [5, 20, 30, 60, 10],
+            'H&M': [95, 70, 50, 40, 60],
+            'Palantir': [10, 5, 30, 90, 40],
+            'Google': [50, 95, 80, 30, 95],
+            'Honda': [50, 30, 10, 50, 30],
+            'Tesla': [30, 60, 95, 70, 95],
+            'Disney': [40, 95, 60, 5, 50],
+            'NY Times': [30, 10, 40, 95, 60],
+            'Booking.com': [60, 30, 20, 70, 10],
+            'Airbnb': [70, 80, 90, 20, 95],
+            'Apple': [10, 60, 90, 50, 95],
+            'Amazon': [80, 50, 70, 40, 90],
+            'Nike': [40, 90, 95, 30, 85],
+            'Coca-Cola': [70, 95, 30, 40, 50],
+            'Microsoft': [40, 30, 50, 80, 75],
+        };
+
+        const levels = ['Hyper', 'Very', 'Quite', 'Somewhat', 'Slightly', '', 'Slightly', 'Somewhat', 'Quite', 'Very', 'Hyper'];
+
+        let sliderValues = personalityAxes.map(() => 50);
+
+        function createSlider(axis, index) {
+            const sliderContainer = document.createElement('div');
+            sliderContainer.className = 'mb-8';
+
+            const labels = document.createElement('div');
+            labels.className = 'flex justify-between mb-2 text-sm font-semibold';
+            labels.innerHTML = `
+                <span>${axis.left}</span>
+                <span>${axis.right}</span>
+            `;
+            sliderContainer.appendChild(labels);
+
+            const slider = document.createElement('div');
+            slider.className = 'relative h-4';
+
+            const track = document.createElement('div');
+            track.className = 'absolute top-1/2 left-0 right-0 h-0.5 bg-gray-300 -translate-y-1/2';
+            slider.appendChild(track);
+
+            for (let i = 0; i < 11; i++) {
+                const tick = document.createElement('div');
+                tick.className = 'absolute top-1/2 w-0.5 h-2 bg-gray-400 -translate-y-1/2';
+                tick.style.left = `${i * 10}%`;
+                slider.appendChild(tick);
+            }
+
+            const handle = document.createElement('div');
+            handle.className = 'absolute top-1/2 w-4 h-4 bg-blue-500 rounded-full -translate-y-1/2 cursor-pointer';
+            handle.style.left = '50%';
+            slider.appendChild(handle);
+
+            sliderContainer.appendChild(slider);
+
+            const brandLabels = document.createElement('div');
+            brandLabels.className = 'flex justify-between mt-1 text-xs text-gray-500';
+            brandLabels.innerHTML = `
+                <span>${axis.leftBrand}</span>
+                <span>${axis.rightBrand}</span>
+            `;
+            sliderContainer.appendChild(brandLabels);
+
+            handle.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                document.addEventListener('mousemove', moveHandle);
+                document.addEventListener('mouseup', stopMoving);
+            });
+
+            function moveHandle(e) {
+                const sliderRect = slider.getBoundingClientRect();
+                let newPosition = (e.clientX - sliderRect.left) / sliderRect.width;
+                newPosition = Math.max(0, Math.min(1, newPosition));
+                const snappedPosition = Math.round(newPosition * 10) / 10;
+                handle.style.left = `${snappedPosition * 100}%`;
+                sliderValues[index] = snappedPosition * 100;
+                updateResult();
+            }
+
+            function stopMoving() {
+                document.removeEventListener('mousemove', moveHandle);
+                document.removeEventListener('mouseup', stopMoving);
+            }
+
+            return sliderContainer;
+        }
+
+        function updateResult() {
+            const traits = sliderValues.map((value, index) => {
+                const axis = personalityAxes[index];
+                const levelIndex = Math.round(value / 10);
+                if (levelIndex < 4) {
+                    return `${levels[levelIndex]} ${axis.left}`;
+                } else if (levelIndex > 6) {
+                    return `${levels[levelIndex]} ${axis.right}`;
+                } else if (levelIndex === 4) {
+                    return `${axis.left} yet ${axis.right.toLowerCase()}`;
+                } else if (levelIndex === 6) {
+                    return `${axis.right} yet ${axis.left.toLowerCase()}`;
+                }
+                return '';
+            }).filter(trait => trait !== '');
+
+            document.getElementById('traits').textContent = traits.join(', ') || 'Balanced';
+
+            const toneOfVoice = traits.map(trait => {
+                const parts = trait.split(' ');
+                const intensity = parts[0] !== 'yet' ? parts[0].toLowerCase() : '';
+                const baseTrait = parts[parts.length - 1];
+                let description = '';
+                switch (baseTrait) {
+                    case 'Elite': description = 'sophisticated, exclusive'; break;
+                    case 'Mass Appeal': description = 'relatable, accessible'; break;
+                    case 'Serious': description = 'professional, formal'; break;
+                    case 'Playful': description = 'fun, casual'; break;
+                    case 'Conventional': description = 'traditional, reliable'; break;
+                    case 'Rebel': description = 'innovative, bold'; break;
+                    case 'Friend': description = 'friendly, approachable'; break;
+                    case 'Authority': description = 'authoritative, expert'; break;
+                    case 'Mature & Classic': description = 'timeless, refined'; break;
+                    case 'Young & Innovative': description = 'fresh, cutting-edge'; break;
+                }
+                return `${intensity ? intensity + ' ' : ''}${description}`;
+            }).join(', ');
+
+            document.getElementById('toneOfVoice').textContent = toneOfVoice || 'Neutral and adaptable';
+
+            const lookAndFeel = traits.map(trait => {
+                const parts = trait.split(' ');
+                const intensity = parts[0] !== 'yet' ? parts[0].toLowerCase() : '';
+                const baseTrait = parts[parts.length - 1];
+                let description = '';
+                switch (baseTrait) {
+                    case 'Elite': description = 'minimalist, luxurious'; break;
+                    case 'Mass Appeal': description = 'bright, simple'; break;
+                    case 'Serious': description = 'muted colors, clean lines'; break;
+                    case 'Playful': description = 'vibrant colors, dynamic elements'; break;
+                    case 'Conventional': description = 'traditional layout, familiar icons'; break;
+                    case 'Rebel': description = 'unconventional layout, bold typography'; break;
+                    case 'Friend': description = 'rounded shapes, warm colors'; break;
+                    case 'Authority': description = 'structured layout, professional imagery'; break;
+                    case 'Mature & Classic': description = 'serif fonts, classic color palette'; break;
+                    case 'Young & Innovative': description = 'modern fonts, gradient colors'; break;
+                }
+                return `${intensity ? intensity + ' ' : ''}${description}`;
+            }).join(', ');
+
+            document.getElementById('lookAndFeel').textContent = lookAndFeel || 'Clean and versatile design';
+
+            updatePresetButtons();
+        }
+
+        function updatePresetButtons() {
+            const presetButtonsContainer = document.getElementById('presetButtons');
+            presetButtonsContainer.innerHTML = '';
+
+            const similarityScores = Object.entries(companyPresets).reduce((acc, [company, presetValues]) => {
+                const difference = sliderValues.reduce((sum, value, index) => {
+                    return sum + Math.abs(value - presetValues[index]);
+                }, 0);
+                const similarity = 1 - (difference / (100 * sliderValues.length));
+                acc[company] = similarity;
+                return acc;
+            }, {});
+
+            Object.entries(similarityScores)
+                .sort((a, b) => b[1] - a[1])
+                .forEach(([company, score]) => {
+                    const button = document.createElement('button');
+                    button.textContent = company;
+                    button.className = 'px-3 py-1 text-sm rounded text-white';
+                    const opacity = Math.max(0.2, score);
+                    button.style.backgroundColor = `rgba(0, 0, 0, ${opacity})`;
+                    button.addEventListener('click', () => applyPreset(company));
+                    presetButtonsContainer.appendChild(button);
+                });
+        }
+
+        function applyPreset(company) {
+            sliderValues = companyPresets[company].map(value => Math.round(value / 10) * 10);
+            updateSliderPositions();
+            updateResult();
+        }
+
+        function updateSliderPositions() {
+            const sliderHandles = document.querySelectorAll('.cursor-pointer');
+            sliderHandles.forEach((handle, index) => {
+                handle.style.left = `${sliderValues[index]}%`;
+            });
+        }
+
+        // Initialize sliders
+        const slidersContainer = document.getElementById('sliders');
+        personalityAxes.forEach((axis, index) => {
+            const slider = createSlider(axis, index);
+            slidersContainer.appendChild(slider);
+        });
+
+        updateResult();
+    </script>
+</body>
+</html>
